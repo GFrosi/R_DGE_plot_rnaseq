@@ -1,0 +1,142 @@
+---
+title: "PCA_plot"
+output: html_document
+date: "2023-07-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# ```{r Install packages, load libraries}
+#installing BiocManager
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("PCAtools")
+install.packages("tidyverse")
+
+
+#loading libraries
+library(PCAtools)
+library(tidyverse)
+library(ggplot2)
+<!-- ``` -->
+
+
+```{r setting work dir}
+setwd("/Users/gfrosi/scratch/rnaseq-2023-saucier/CT26/")
+```
+
+
+```{r Load normalized counts from dge.csv - Genpipes RNA-Seq}
+count_data <- read_tsv("dge_results.csv")
+count_data_filter <- count_data[,c(1,9,10,11,12,13,14)]
+```
+```{r Adjusting col names}
+#fixing col names
+colnames(count_data_filter) = gsub(".norm", "", colnames(count_data_filter))
+colnames(count_data_filter) = gsub("flagsocs1.", "flagsocs1_", colnames(count_data_filter))
+count_data_filter <- count_data_filter %>% column_to_rownames(., var = 'id')
+
+head(count_data_filter)
+```
+
+```{r sample info- design}
+#load sample_info = design
+sample_info <- read_csv("R_PCA/design.csv")
+sample_info <- sample_info %>% column_to_rownames(., var='Sample')
+sample_info
+```
+```{r checking cols and rows}
+all(colnames(count_data_filter) %in% rownames(sample_info))
+all(colnames(count_data_filter) == rownames(sample_info))
+```
+
+
+```{r PCA Plot - check PCs}
+#Check how many PCs
+project.pca <- prcomp(t(count_data_filter))
+project.pca$x
+summary(project.pca)
+```
+
+```{r PCA- metadata (df)}
+metadata <- data.frame(row.names = colnames(count_data_filter)) #getting samples names
+metadata$Group <- sample_info$Treatment #adding treatment layer to group pca
+# metadata$Condition <- sample_info$Condition
+metadata
+```
+```{r PCA object}
+p <- pca(count_data_filter, metadata = metadata, removeVar = 0.1) #check remove var
+p
+```
+```{r Scree plot}
+horn <- parallelPCA(count_data_filter)
+horn$n
+
+elbow <- findElbowPoint(p$variance)
+elbow
+
+
+screeplot(p,
+          components = getComponents(p, 1:20),
+          vline = c(horn$n, elbow)) +
+  
+  geom_label(aes(x = horn$n + 1, y = 50,
+                 label = 'Horn\'s', vjust = -1, size = 8)) +
+  geom_label(aes(x = elbow + 1, y = 50,
+                 label = 'Elbow method', vjust = -1, size = 8))
+
+```
+
+```{r Plot PCA PC1 vs PC2}
+#You can change the PCs
+# pdf("PCA.pdf")
+biplot(p, x = 'PC1', y = 'PC2',
+       # xlim=c(-800000, 800000),
+       labSize = 5, pointSize = 5, sizeLoadingsNames = 5, hline = 0, vline = 0,
+       legendPosition = 'right', colby = 'Group',
+       # shape = 'Condition',
+       title = 'PCA bi-plot',
+       subtitle = 'PC1 versus PC2',
+       caption = '6 PCs') #show names
+# dev.off()
+```
+
+```{r PCA pairs}
+# pdf("PCA_pairsl.pdf")
+pairsplot(p,
+          hline = 0, vline = 0,
+          triangle = FALSE,
+          pointSize = 0.4,
+          colby = 'Group',
+          # shape='Condition',
+          title = 'Pairs plot HT29',
+          margingaps = unit(c(0.4, 0.4, 0.4, 0.4), 'cm'),
+          xlabAngle=30
+        
+          ) 
+# dev.off()
+```
+

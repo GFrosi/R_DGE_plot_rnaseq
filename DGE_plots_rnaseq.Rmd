@@ -17,27 +17,24 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r setting work dir}
-
-setwd("/Users/gfrosi/scratch/rnaseq-2023-saucier/CT26/")
-
+setwd("~/scratch/rnaseq-2023-saucier/CT26/")
 ```
 
 
 ```{r load libraries}
-# if (!require("BiocManager", quietly = TRUE))
-#   install.packages("BiocManager")
-# 
-# BiocManager::install("DESeq2")
-# BiocManager::install("apeglm") #shrink normalization
-# BiocManager::install("genefilter")
-# BiocManager::install("PCAtools")
-# BiocManager::install('EnhancedVolcano')
-# 
-# #Installing tidyverse
-# install.packages("tidyverse")
-# install.packages("pheatmap")
-# install.packages("RCurl")
-# install.packages("XML")
+if (!require("BiocManager", quietly = TRUE))
+   install.packages("BiocManager")
+ 
+BiocManager::install("DESeq2")
+BiocManager::install("apeglm") #shrink normalization
+BiocManager::install("genefilter")
+BiocManager::install("PCAtools")
+BiocManager::install('EnhancedVolcano')
+ 
+install.packages("tidyverse")
+install.packages("pheatmap")
+install.packages("RCurl")
+install.packages("XML")
 ```
 
 
@@ -50,24 +47,22 @@ count_data_filter <- count_data[,c(1,15,16,17,18,19,20)]
 colnames(count_data_filter) = gsub(".raw", "", colnames(count_data_filter))
 count_data_filter <- count_data_filter %>% column_to_rownames(., var = 'id')
 head(count_data_filter)
-
 ```
 
 ```{r load design}
-
 sample_info <- read_csv("R_PCA/design.csv")
 sample_info <- sample_info %>% column_to_rownames(., var='Sample')
 sample_info
-
 ```
-```{r checking columns and rown}
 
+```{r checking columns and rown}
 #checking if the names in count and design are the same
 all(colnames(count_data_filter) %in% rownames(sample_info))
 
 #checking if the names are in the same other
 all(colnames(count_data_filter) == rownames(sample_info))
 ```
+
 ```{r DESEq2}
 #creating dds - condition: treatment
 dds <- DESeqDataSetFromMatrix(countData = count_data_filter,
@@ -83,13 +78,12 @@ keep_c <- rowSums(counts(dds)) >= 10
 dds <- dds[keep_c,]
 dds
 ```
-```{r Setting Factor level}
 
+```{r Setting Factor level}
 dds$Treatment <- relevel(dds$Treatment, ref='Untreated')
 ```
 
 ```{r Run DESEq2}
-
 #Run DESeq and create result variable
 dds2 <- DESeq(dds)
 
@@ -100,7 +94,6 @@ res <- results(dds2, alpha = 0.05)
 ```
 
 ```{r lfc Shrink}
-
 #Creating res LFC - shrink
 resLFC <- lfcShrink(dds2, coef="Treatment_Treated_vs_Untreated", type="apeglm")
 resLFC
@@ -110,6 +103,7 @@ resLFC
 ```{r Dispersion plot}
 plotDispEsts(dds2)
 ```
+
 ```{r Plot MA}
 pdf("DESeqMAplot_lfcShrink.pdf")
 
@@ -143,8 +137,8 @@ pheatmap(sampleDistMatrix,
          col = colors)
 
 # dev.off()
-
 ```
+
 ```{r Heatmap sample correlation - pearson correlation}
 #Pearson correlation
 corrs <- cor(assay(rld), method="pearson")
@@ -156,7 +150,6 @@ corr.dists <- as.dist(1 - corrs)
 pheatmap(corrs, breaks=seq(from=0.95,to=1,length=100),
          clustering_distance_rows=corr.dists,
          clustering_distance_cols=corr.dists)
-
 ```
 
 ```{r Heatmap - 20 top genes}
@@ -166,14 +159,13 @@ mat <- mat - rowMeans(mat)
 # anno <- as.data.frame(colData(rld)[, "Condition"])
 # anno
 pheatmap(mat)
-
 ```
+
 ```{r hcluster}
 par(mfrow=c(1,2))
 as.dist(1 - corrs) %>% hclust %>%
   plot( ., labels = colnames(corrs),
         main = "rlog norm read counts ")
-
 ```
 
 ```{r Volcano plot}
